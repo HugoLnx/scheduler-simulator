@@ -7,7 +7,8 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-int pids[100], *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
+int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
+int *pids, id_pids;
 char *programs;
 int *types;
 
@@ -15,7 +16,7 @@ int *types;
 #define TYPES_KEY         8763
 #define PROGRAMS_SIZE_KEY 8764
 
-int iniciar_processo(int id) {
+int start_process(int id) {
 	int pid = fork();
 	int is_child = pid == 0;
 	if(is_child) {
@@ -25,6 +26,20 @@ int iniciar_processo(int id) {
 	} else {
 		kill(pid, SIGSTOP);
 		return pid;
+	}
+}
+
+void initialize_processes() {
+	int i;
+	int pid = fork();
+	int is_child = pid == 0;
+	if(is_child) {
+		for(i = 0; i < *programs_size; i++) {
+			pids[i+1] = start_process(i);
+			pids[0] = i+1;
+			sleep(3);
+		}
+		exit(0);
 	}
 }
 
@@ -49,31 +64,31 @@ void wait_for_programs() {
 
 int main()
 {
-	int i;
-	wait_for_programs();
 	int current = 0;
-	for(i = 0; i < *programs_size; i++) {
-		printf("%s %d %d\n",programs+i*255, types[i*2], types[i*2+1]);
-	}
-	for(i = 0; i < *programs_size; i++) {
-		pids[i] = iniciar_processo(i);
-		printf("pid: %d\n", pids[i]);
-	}
+	wait_for_programs();
+	id_pids = shmget(IPC_PRIVATE, sizeof(int)**programs_size, IPC_CREAT | IPC_EXCL | S_IRWXU);
+	pids = shmat(id_pids, 0, 0);
+	pids[0] = 0;
+	initialize_processes();
 
 	while(1) {
-		int previous = (current+*programs_size*2-1) % *programs_size;
-		kill(pids[previous], SIGSTOP);
-		kill(pids[current], SIGCONT);
-		
-		sleep(1);
-		current = (current+1)%*programs_size;
+		if(pids[0] > 0) {
+			int i;
+			for(i = 0; i < pids[0]; i++) kill(pids[i+1], SIGSTOP);
+			kill(pids[current], SIGCONT);
+			
+			usleep(500*1000); // sleep 0.5 seconds
+			current = ((current+1)%pids[0])+1;
+		}
 	}
 
 	shmdt(programs);
 	shmdt(types);
 	shmdt(programs_size);
+	shmdt(pids);
 
 	shmctl(id_programs, IPC_RMID, 0);
 	shmctl(id_types, IPC_RMID, 0);
 	shmctl(id_programs_size, IPC_RMID, 0);
+	shmctl(id_pids, IPC_RMID, 0);
 }
