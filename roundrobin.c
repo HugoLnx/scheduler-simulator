@@ -12,52 +12,34 @@
 #define DEBUG_LOTTERY //printf
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
-int *pids, id_pids;
-int *rrobin_pids, id_rrobin_pids;
+int pids[100];
+int rrobin_pids[100];
 int rrobin_current = 0;
 char *programs;
 int *types;
-int *lottery_pids, id_lottery_pids, *tickets, id_tickets;
+int lottery_pids[21], tickets[21];
 int free_tickets[21];
+int current_program = 0;
 
 #define PROGRAMS_KEY      8762
 #define TYPES_KEY         8763
 #define PROGRAMS_SIZE_KEY 8764
 
 void set_private_shared_memory() {
-	id_pids = shmget(IPC_PRIVATE, sizeof(int)*(*programs_size+1), IPC_CREAT | IPC_EXCL | S_IRWXU);
-	pids = shmat(id_pids, 0, 0);
 	pids[0] = 0;
-
-	id_rrobin_pids = shmget(IPC_PRIVATE, sizeof(int)*(*programs_size+1), IPC_CREAT | IPC_EXCL | S_IRWXU);
-	rrobin_pids = shmat(id_rrobin_pids, 0, 0);
 	rrobin_pids[0] = 0;
-
-	id_tickets = shmget(IPC_PRIVATE, sizeof(int)*21, IPC_CREAT | IPC_EXCL | S_IRWXU);
-	tickets = shmat(id_tickets, 0, 0);
 	memset(tickets, 0x00, sizeof(int)*21);
-
-	id_lottery_pids = shmget(IPC_PRIVATE, sizeof(int)*20, IPC_CREAT | IPC_EXCL | S_IRWXU);
-	lottery_pids = shmat(id_lottery_pids, 0, 0);
-	memset(lottery_pids, 0x00, sizeof(int)*20);
+	memset(lottery_pids, 0x00, sizeof(int)*21);
 }
 
 void release_shared_memory_and_exit(int code) {
 	shmdt(programs);
 	shmdt(types);
 	shmdt(programs_size);
-	shmdt(pids);
-	shmdt(rrobin_pids);
-	shmdt(lottery_pids);
-	shmdt(tickets);
 
 	shmctl(id_programs, IPC_RMID, 0);
 	shmctl(id_types, IPC_RMID, 0);
 	shmctl(id_programs_size, IPC_RMID, 0);
-	shmctl(id_pids, IPC_RMID, 0);
-	shmctl(id_rrobin_pids, IPC_RMID, 0);
-	shmctl(id_lottery_pids, IPC_RMID, 0);
-	shmctl(id_tickets, IPC_RMID, 0);
 	exit(code);
 }
 
@@ -124,17 +106,8 @@ void run_program(int id) {
 	pids[0] = pids[0]+1;
 }
 
-void initialize_processes() {
-	int i;
-	int pid = fork();
-	int is_child = pid == 0;
-	if(is_child) {
-		for(i = 0; i < *programs_size; i++) {
-			run_program(i);
-			sleep(3);
-		}
-		release_shared_memory_and_exit(0);
-	}
+void run_next_program() {
+	run_program(current_program++);
 }
 
 void wait_for_programs() {
@@ -173,6 +146,7 @@ void resume_lottery_process() {
 
 int main()
 {
+	double time_past = 0.0;
 	srand(time(NULL));
 	initialize_tickets();
 	// TODO: Ver se dá para fazer freopen funfar para subprocessos
@@ -180,16 +154,19 @@ int main()
 	wait_for_programs();
 	set_private_shared_memory();
 
-	initialize_processes();
-
 	while(1) {
 		if(pids[0] > 0) {
 			int i;
 			for(i = 0; i < pids[0]; i++) kill(pids[i+1], SIGSTOP);
 			//resume_robin_process();
 			resume_lottery_process();
+		}
 
-			usleep(500*1000); // sleep 0.5 seconds
+		usleep(500*1000); // sleep 0.5 seconds
+		time_past += 0.5;
+		if(time_past >= 3.0) {
+			run_next_program();
+			time_past = 0.0;
 		}
 	}
 
