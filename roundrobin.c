@@ -78,6 +78,8 @@ void wait_for_programs() {
 int main()
 {
 	int current = 0;
+	// TODO: Ver se dá para fazer freopen funfar para subprocessos
+	// freopen("saida.txt","w",stdout);
 	wait_for_programs();
 
 	id_pids = shmget(IPC_PRIVATE, sizeof(int)**programs_size, IPC_CREAT | IPC_EXCL | S_IRWXU);
@@ -90,10 +92,10 @@ int main()
 		if(pids[0] > 0) {
 			int i;
 			for(i = 0; i < pids[0]; i++) kill(pids[i+1], SIGSTOP);
-			kill(pids[current], SIGCONT);
+			kill(pids[current+1], SIGCONT);
 			
 			usleep(500*1000); // sleep 0.5 seconds
-			current = ((current+1)%pids[0])+1;
+			current = ((current+1)%pids[0]);
 		}
 	}
 
