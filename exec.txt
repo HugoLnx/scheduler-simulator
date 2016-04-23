@@ -1,3 +1,6 @@
-Exec program1
-Exec program2 prioridade=4
+Exec program1 numtickets=5
+Exec program2 numtickets=5
 Exec program3 numtickets=10
+Exec program4
+Exec program5
+Exec program6
