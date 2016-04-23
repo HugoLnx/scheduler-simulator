@@ -16,13 +16,26 @@ int *types;
 #define TYPES_KEY         8763
 #define PROGRAMS_SIZE_KEY 8764
 
+void release_shared_memory_and_exit(int code) {
+	shmdt(programs);
+	shmdt(types);
+	shmdt(programs_size);
+	shmdt(pids);
+
+	shmctl(id_programs, IPC_RMID, 0);
+	shmctl(id_types, IPC_RMID, 0);
+	shmctl(id_programs_size, IPC_RMID, 0);
+	shmctl(id_pids, IPC_RMID, 0);
+	exit(code);
+}
+
 int start_process(int id) {
 	int pid = fork();
 	int is_child = pid == 0;
 	if(is_child) {
 		char *args[255] = {programs+(id*255), NULL};
 		execv(programs+(id*255), args);
-		exit(1);
+		release_shared_memory_and_exit(1);
 	} else {
 		kill(pid, SIGSTOP);
 		return pid;
@@ -39,7 +52,7 @@ void initialize_processes() {
 			pids[0] = i+1;
 			sleep(3);
 		}
-		exit(0);
+		release_shared_memory_and_exit(0);
 	}
 }
 
@@ -66,9 +79,11 @@ int main()
 {
 	int current = 0;
 	wait_for_programs();
+
 	id_pids = shmget(IPC_PRIVATE, sizeof(int)**programs_size, IPC_CREAT | IPC_EXCL | S_IRWXU);
 	pids = shmat(id_pids, 0, 0);
 	pids[0] = 0;
+
 	initialize_processes();
 
 	while(1) {
@@ -82,13 +97,5 @@ int main()
 		}
 	}
 
-	shmdt(programs);
-	shmdt(types);
-	shmdt(programs_size);
-	shmdt(pids);
-
-	shmctl(id_programs, IPC_RMID, 0);
-	shmctl(id_types, IPC_RMID, 0);
-	shmctl(id_programs_size, IPC_RMID, 0);
-	shmctl(id_pids, IPC_RMID, 0);
+	release_shared_memory_and_exit(0);
 }
