@@ -10,7 +10,7 @@
 #include <unistd.h>
 
 #define DEBUG_LOTTERY //printf
-#define DEBUG_PRIORITY printf
+#define DEBUG_PRIORITY //printf
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
 int pids[100];
@@ -102,8 +102,11 @@ void get_tickets_for(int pid, int amount) {
 
 int comparePrio(const void* a, const void* b)
 {
-    Prio *a1 = (Prio*)a;
-    Prio *b1 = (Prio*)b;
+    Prio *a1 = *((Prio**) a);
+    Prio *b1 = *((Prio**) b);
+    
+    DEBUG_PRIORITY("\n\nA -> PROCESSO: Pid = %d , Prioridade = %d \n", a1->pid, a1->priority);
+    DEBUG_PRIORITY("\n\nB -> PROCESSO: Pid = %d , Prioridade = %d \n", b1->pid, b1->priority);
     
     return ( a1->priority - b1->priority );
 }
@@ -116,7 +119,7 @@ void set_priority_process_in_memory(int pid, int prio) {
     DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[numPrio]->pid, prio_pids[numPrio]->priority);
     numPrio++;
     
-    qsort(prio_pids,numPrio,sizeof(Prio),comparePrio);
+    qsort(prio_pids,numPrio,sizeof(Prio*),comparePrio);
 }
 
 void run_program(int id) {
@@ -186,7 +189,7 @@ int main()
 	double time_past = 0.0;
 	srand(time(NULL));
 	initialize_tickets();
-    prio_pids = (Prio**)malloc(sizeof(Prio*));
+    prio_pids = (Prio**)malloc(100*sizeof(Prio*));
 	// TODO: Ver se dá para fazer freopen funfar para subprocessos
 	// freopen("saida.txt","w",stdout);
 	wait_for_programs();
