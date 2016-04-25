@@ -10,6 +10,7 @@
 #include <unistd.h>
 
 #define DEBUG_LOTTERY //printf
+#define DEBUG_PRIORITY printf
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
 int pids[100];
@@ -20,6 +21,15 @@ int *types;
 int lottery_pids[21], tickets[21];
 int free_tickets[21];
 int current_program = 0;
+
+struct prio{
+    int pid;
+    int priority;
+};
+typedef struct prio Prio;
+
+Prio **prio_pids;
+int numPrio = 0;
 
 #define PROGRAMS_KEY      8762
 #define TYPES_KEY         8763
@@ -90,6 +100,25 @@ void get_tickets_for(int pid, int amount) {
 	}
 }
 
+int sortPrio(const void* a, const void* b)
+{
+    Prio *a1, *b1;
+    
+    a1 = (Prio*)a;
+    b1 = (Prio*)b;
+    
+    return a1->priority - b1->priority;
+}
+
+void set_priority_process_in_memory(int pid, int prio) {
+    prio_pids[numPrio] = (Prio*)malloc(sizeof(Prio));
+    prio_pids[numPrio]->pid = pid;
+    prio_pids[numPrio]->priority = prio;
+    numPrio++;
+    
+    qsort(prio_pids,numPrio,sizeof(Prio*),sortPrio);
+}
+
 void run_program(int id) {
 	int pid = start_process(id);
 	if(types[id*2] == 0) {
@@ -98,6 +127,7 @@ void run_program(int id) {
 		rrobin_pids[0] = rrobin_pids[0]+1;
 	} else if(types[id*2] == 1) {
 		// PRIORITY
+        set_priority_process_in_memory(pid, types[id*2+1]);
 	} else if(types[id*2] == 2) {
 		// LOTTERY
 		get_tickets_for(pid, types[id*2+1]);
@@ -144,22 +174,30 @@ void resume_lottery_process() {
 	}
 }
 
+void resume_priority_process() {
+    if(numPrio > 0) {
+        kill(prio_pids[0], SIGCONT);
+    }
+}
+
 int main()
 {
 	double time_past = 0.0;
 	srand(time(NULL));
 	initialize_tickets();
+    prio_pids = (Prio**)malloc(100*sizeof(Prio*));
 	// TODO: Ver se dá para fazer freopen funfar para subprocessos
 	// freopen("saida.txt","w",stdout);
 	wait_for_programs();
 	set_private_shared_memory();
-
+    
 	while(1) {
 		if(pids[0] > 0) {
 			int i;
 			for(i = 0; i < pids[0]; i++) kill(pids[i+1], SIGSTOP);
 			//resume_robin_process();
-			resume_lottery_process();
+//			resume_lottery_process();
+            resume_priority_process();
 		}
 
 		usleep(500*1000); // sleep 0.5 seconds
