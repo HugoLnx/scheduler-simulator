@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define DEBUG_LOTTERY printf
+#define DEBUG_LOTTERY //printf
 #define DEBUG_PRIORITY //printf
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
@@ -29,7 +29,7 @@ struct prio{
 };
 typedef struct prio Prio;
 
-Prio **prio_pids;
+Prio prio_pids[100];
 int numPrio = 0;
 
 #define PROGRAMS_KEY      8762
@@ -103,21 +103,20 @@ void get_tickets_for(int pid, int amount) {
 
 int comparePrio(const void* a, const void* b)
 {
-    Prio *a1 = *((Prio**) a);
-    Prio *b1 = *((Prio**) b);
+    Prio *a1 = (Prio*) a;
+    Prio *b1 = (Prio*) b;
     
     return ( a1->priority - b1->priority );
 }
 
 void set_priority_process_in_memory(int pid, int prio) {
-    prio_pids[numPrio] = (Prio*)malloc(sizeof(Prio));
-    prio_pids[numPrio]->pid = pid;
-    prio_pids[numPrio]->priority = prio;
+    prio_pids[numPrio].pid = pid;
+    prio_pids[numPrio].priority = prio;
     
-    DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[numPrio]->pid, prio_pids[numPrio]->priority);
+    DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[numPrio].pid, prio_pids[numPrio].priority);
     numPrio++;
     
-    qsort(prio_pids,numPrio,sizeof(Prio*),comparePrio);
+    qsort(prio_pids, numPrio, sizeof(Prio), comparePrio);
 }
 
 void run_program(int id) {
@@ -181,10 +180,10 @@ void resume_lottery_process() {
 
 void resume_priority_process() {
     if(numPrio > 0) {
-        kill(prio_pids[0], SIGCONT);
+        kill(prio_pids[0].pid, SIGCONT);
         current_pid[0] = 2;
-        current_pid[1] = prio_pids[0];
-        DEBUG_PRIORITY("pid chosed: %d\n", prio_pids[0]->pid);
+        current_pid[1] = prio_pids[0].pid;
+        DEBUG_PRIORITY("pid chosed: %d\n", prio_pids[0].pid);
     }
 }
 
@@ -193,7 +192,6 @@ int main()
 	double time_past = 0.0;
 	srand(time(NULL));
 	initialize_tickets();
-    prio_pids = (Prio**)malloc(100*sizeof(Prio*));
 	// TODO: Ver se dá para fazer freopen funfar para subprocessos
 	// freopen("saida.txt","w",stdout);
 	wait_for_programs();
@@ -203,7 +201,7 @@ int main()
 		if(pids[0] > 0) {
 			if(current_pid[0] >= 0) kill(current_pid[1], SIGSTOP);
             
-            if (prio_pids[0]->pid > 0)
+            if (prio_pids[0].pid > 0)
                 resume_priority_process();
             else if (rrobin_pids[0] > 0)
                 resume_robin_process();
