@@ -21,6 +21,7 @@ int *types;
 int lottery_pids[21], tickets[21];
 int free_tickets[21];
 int current_program = 0;
+int current_pid[2] = {-1, -1};
 
 struct prio{
     int pid;
@@ -162,6 +163,8 @@ void wait_for_programs() {
 void resume_robin_process() {
 	if(rrobin_pids[0] > 0) {
 		kill(rrobin_pids[rrobin_current+1], SIGCONT);
+		current_pid[0] = 0;
+		current_pid[1] = rrobin_pids[rrobin_current+1];
 		rrobin_current = ((rrobin_current+1)%rrobin_pids[0]);
 	}
 }
@@ -171,12 +174,16 @@ void resume_lottery_process() {
 		int ticket = tickets[randomize(1, tickets[0])];
 		DEBUG_LOTTERY("ticket choosed: %d\n", ticket);
 		kill(lottery_pids[ticket], SIGCONT);
+		current_pid[0] = 1;
+		current_pid[1] = lottery_pids[ticket];
 	}
 }
 
 void resume_priority_process() {
     if(numPrio > 0) {
         kill(prio_pids[0], SIGCONT);
+        current_pid[0] = 2;
+        current_pid[1] = prio_pids[0];
         DEBUG_PRIORITY("pid chosed: %d\n", prio_pids[0]->pid);
     }
 }
@@ -194,8 +201,7 @@ int main()
     
 	while(1) {
 		if(pids[0] > 0) {
-			int i;
-			for(i = 0; i < pids[0]; i++) kill(pids[i+1], SIGSTOP);
+			if(current_pid[0] >= 0) kill(current_pid[1], SIGSTOP);
             
             if (prio_pids[0]->pid > 0)
                 resume_priority_process();
