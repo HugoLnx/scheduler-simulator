@@ -9,7 +9,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define DEBUG_LOTTERY //printf
+#define DEBUG_LOTTERY printf
 #define DEBUG_PRIORITY //printf
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
@@ -92,10 +92,10 @@ int get_ticket() {
 
 void get_tickets_for(int pid, int amount) {
 	int i;
-	DEBUG_LOTTERY("tickets for %d\n", pid);
 	for(i = 0; i < amount; i++) {
 		int ticket = get_ticket();
 		lottery_pids[ticket] = pid;
+        tickets[i] = ticket;
 		DEBUG_LOTTERY("> %d\n", ticket);
 	}
 }
@@ -104,9 +104,6 @@ int comparePrio(const void* a, const void* b)
 {
     Prio *a1 = *((Prio**) a);
     Prio *b1 = *((Prio**) b);
-    
-    DEBUG_PRIORITY("\n\nA -> PROCESSO: Pid = %d , Prioridade = %d \n", a1->pid, a1->priority);
-    DEBUG_PRIORITY("\n\nB -> PROCESSO: Pid = %d , Prioridade = %d \n", b1->pid, b1->priority);
     
     return ( a1->priority - b1->priority );
 }
