@@ -11,6 +11,7 @@
 
 #define DEBUG_LOTTERY //printf
 #define DEBUG_PRIORITY //printf
+#define DEBUG_STACK(A) A
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
 int pids[100];
@@ -79,13 +80,18 @@ int randomize(int init, int end) {
 	return init+rand()%(1+end-init);
 }
 
+void delete_at(void *array, int inx, int element_size, int array_size) {
+	char tmp[1000];
+	memcpy(tmp, array+(inx+1)*element_size, element_size*(array_size-inx));
+	memcpy(array+inx*element_size, tmp, element_size*(array_size-inx));
+}
+
 int get_ticket() {
 	int ticket, i;
 	int tmp[21];
 	int inx = randomize(1,free_tickets[0]);
 	ticket = free_tickets[inx];	
-	memcpy(tmp, free_tickets+inx+1, sizeof(int)*(free_tickets[0]-inx));
-	memcpy(free_tickets+inx, tmp, sizeof(int)*(free_tickets[0]-inx));
+	delete_at(free_tickets, inx, sizeof(int), free_tickets[0]);
 	free_tickets[0]--;
 	tickets[++tickets[0]] = ticket;
 	return ticket;
@@ -137,7 +143,9 @@ void run_program(int id) {
 }
 
 void run_next_program() {
-	run_program(current_program++);
+	if(current_program < *programs_size) {
+		run_program(current_program++);
+	}
 }
 
 void wait_for_programs() {
@@ -173,7 +181,7 @@ void resume_lottery_process() {
 		int ticket = tickets[randomize(1, tickets[0])];
 		DEBUG_LOTTERY("ticket choosed: %d\n", ticket);
 		kill(lottery_pids[ticket], SIGCONT);
-		current_pid[0] = 1;
+		current_pid[0] = 2;
 		current_pid[1] = lottery_pids[ticket];
 	}
 }
@@ -181,10 +189,53 @@ void resume_lottery_process() {
 void resume_priority_process() {
     if(numPrio > 0) {
         kill(prio_pids[0].pid, SIGCONT);
-        current_pid[0] = 2;
+        current_pid[0] = 1;
         current_pid[1] = prio_pids[0].pid;
         DEBUG_PRIORITY("pid chosed: %d\n", prio_pids[0].pid);
     }
+}
+
+void remove_pid(int pid) {
+	int inx = 1;
+	while(pids[inx] != pid) inx++;
+	delete_at(pids, inx, sizeof(int), pids[0]);
+	pids[0]--;
+}
+
+void remove_rrobin_pid(int pid) {
+	int inx = 1;
+	while(rrobin_pids[inx] != pid) inx++;
+	delete_at(rrobin_pids, inx, sizeof(int), rrobin_pids[0]);
+	rrobin_pids[0]--;
+}
+
+void remove_priority_pid(int pid) {
+}
+
+void remove_lottery_pid(int pid) {
+}
+
+void finalize_current_process_when_finished() {
+	int process_have_finished = waitpid(current_pid[1], NULL, WNOHANG) > 0;
+	if(process_have_finished) {
+		remove_pid(current_pid[1]);
+		if(current_pid[0] == 0) {
+			remove_rrobin_pid(current_pid[1]);
+		} else if(current_pid[0] == 1) {
+			remove_priority_pid(current_pid[1]);
+		} else if(current_pid[0] == 2) {
+			remove_lottery_pid(current_pid[1]);
+		}
+	}
+}
+
+void print_array(char *name, int *array) {
+	int i;
+	printf("%s (%d): [", name, array[0]);
+	for(i = 1; i <= array[0]; i++) {
+		printf("%d ", array[i]);
+	}
+	printf("]\n");
 }
 
 int main()
@@ -199,7 +250,10 @@ int main()
     
 	while(1) {
 		if(pids[0] > 0) {
-			if(current_pid[0] >= 0) kill(current_pid[1], SIGSTOP);
+			if(current_pid[0] >= 0){
+				kill(current_pid[1], SIGSTOP);
+				finalize_current_process_when_finished();
+			}
             
             if (prio_pids[0].pid > 0)
                 resume_priority_process();
@@ -215,6 +269,8 @@ int main()
 			run_next_program();
 			time_past = 0.0;
 		}
+		DEBUG_STACK(print_array)("Robin", rrobin_pids);
+		DEBUG_STACK(print_array)("PIDs", pids);
 	}
 
 	release_shared_memory_and_exit(0);
