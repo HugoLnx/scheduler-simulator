@@ -11,7 +11,7 @@
 
 #define DEBUG_LOTTERY //printf
 #define DEBUG_PRIORITY //printf
-#define DEBUG_STACK(A) A
+#define DEBUG_STACK(A) //A
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
 int pids[100];
@@ -102,8 +102,6 @@ void get_tickets_for(int pid, int amount) {
 	for(i = 0; i < amount; i++) {
 		int ticket = get_ticket();
 		lottery_pids[ticket] = pid;
-        tickets[i] = ticket;
-		DEBUG_LOTTERY("> %d\n", ticket);
 	}
 }
 
@@ -212,7 +210,23 @@ void remove_rrobin_pid(int pid) {
 void remove_priority_pid(int pid) {
 }
 
+void remove_ticket(int ticket) {
+	int inx = 1;
+	while(tickets[inx] != ticket) inx++;
+	delete_at(tickets, inx, sizeof(int), tickets[0]);
+	tickets[0]--;
+
+	lottery_pids[ticket] = 0;
+	free_tickets[++free_tickets[0]] = ticket;
+}
+
 void remove_lottery_pid(int pid) {
+	int ticket;
+	for(ticket = 1; ticket <= 20; ticket++) {
+		if(lottery_pids[ticket] == pid) {
+			remove_ticket(ticket);
+		}
+	}
 }
 
 void finalize_current_process_when_finished() {
@@ -229,10 +243,19 @@ void finalize_current_process_when_finished() {
 	}
 }
 
-void print_array(char *name, int *array) {
+void print_sized_array(char *name, int *array) {
 	int i;
 	printf("%s (%d): [", name, array[0]);
 	for(i = 1; i <= array[0]; i++) {
+		printf("%d ", array[i]);
+	}
+	printf("]\n");
+}
+
+void print_array(char *name, int *array, int size) {
+	int i;
+	printf("%s (%d): [", name, array[0]);
+	for(i = 0; i < size; i++) {
 		printf("%d ", array[i]);
 	}
 	printf("]\n");
@@ -259,7 +282,7 @@ int main()
                 resume_priority_process();
             else if (rrobin_pids[0] > 0)
                 resume_robin_process();
-            else if (lottery_pids[0] > 0)
+            else if (tickets[0] > 0)
                 resume_lottery_process();
 		}
 
@@ -269,8 +292,11 @@ int main()
 			run_next_program();
 			time_past = 0.0;
 		}
-		DEBUG_STACK(print_array)("Robin", rrobin_pids);
-		DEBUG_STACK(print_array)("PIDs", pids);
+		DEBUG_STACK(print_sized_array)("Robin", rrobin_pids);
+		DEBUG_STACK(print_array)("Lottery", lottery_pids, 20);
+		DEBUG_STACK(print_sized_array)("Used Tickets", tickets);
+		DEBUG_STACK(print_sized_array)("Free Tickets", free_tickets);
+		DEBUG_STACK(print_sized_array)("PIDs", pids);
 	}
 
 	release_shared_memory_and_exit(0);
