@@ -44,7 +44,7 @@ struct prio{
 typedef struct prio Prio;
 
 Prio prio_pids[100];
-int numPrio = 0;
+int num_prio = 0;
 
 /*
  * Utilitários
@@ -88,8 +88,8 @@ void print_sized_array(char *name, int *array) {
 
 void print_priority_pids() {
 	int i;
-	printf("Priority (%d): [", numPrio);
-	for(i = 0; i < numPrio; i++) {
+	printf("Priority (%d): [", num_prio);
+	for(i = 0; i < num_prio; i++) {
 		printf("(%d,%d) ", prio_pids[i].priority, prio_pids[i].pid);
 	}
 	printf("]\n");
@@ -223,7 +223,7 @@ void remove_lottery_pid(int pid) {
 /*
  * Prioridade
  */
-int comparePrio(const void* a, const void* b)
+int compare_prio(const void* a, const void* b)
 {
     Prio *a1 = (Prio*) a;
     Prio *b1 = (Prio*) b;
@@ -232,17 +232,17 @@ int comparePrio(const void* a, const void* b)
 }
 
 void set_priority_process_in_memory(int pid, int prio) {
-    prio_pids[numPrio].pid = pid;
-    prio_pids[numPrio].priority = prio;
+    prio_pids[num_prio].pid = pid;
+    prio_pids[num_prio].priority = prio;
     
-    DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[numPrio].pid, prio_pids[numPrio].priority);
-    numPrio++;
+    DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[num_prio].pid, prio_pids[num_prio].priority);
+    num_prio++;
     
-    qsort(prio_pids, numPrio, sizeof(Prio), comparePrio);
+    qsort(prio_pids, num_prio, sizeof(Prio), compare_prio);
 }
 
 void resume_priority_process() {
-    if(numPrio > 0) {
+    if(num_prio > 0) {
         kill(prio_pids[0].pid, SIGCONT);
         current_pid[0] = 1;
         current_pid[1] = prio_pids[0].pid;
@@ -253,8 +253,8 @@ void resume_priority_process() {
 void remove_priority_pid(int pid) {
 	int inx = 0;
 	while(prio_pids[inx].pid != pid) inx++;
-	delete_at(prio_pids, inx, sizeof(Prio), numPrio);
-	numPrio--;
+	delete_at(prio_pids, inx, sizeof(Prio), num_prio);
+	num_prio--;
 }
 
 /*
