@@ -11,7 +11,7 @@
 
 #define DEBUG_LOTTERY //printf
 #define DEBUG_PRIORITY //printf
-#define DEBUG_STACK(A) A
+#define DEBUG_STACK(A) //A
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
 int pids[100];
@@ -20,6 +20,7 @@ int rrobin_current = 0;
 char *programs;
 int *types;
 int lottery_pids[21], tickets[21];
+int pending_lottery[21][2];
 int free_tickets[21];
 int current_program = 0;
 int current_pid[2] = {-1, -1};
@@ -97,12 +98,14 @@ int get_ticket() {
 	return ticket;
 }
 
-void get_tickets_for(int pid, int amount) {
+int get_tickets_for(int pid, int amount) {
 	int i;
+	if(amount + tickets[0] > 20) return 0;
 	for(i = 0; i < amount; i++) {
 		int ticket = get_ticket();
 		lottery_pids[ticket] = pid;
 	}
+	return 1;
 }
 
 int comparePrio(const void* a, const void* b)
@@ -134,7 +137,12 @@ void run_program(int id) {
         set_priority_process_in_memory(pid, types[id*2+1]);
 	} else if(types[id*2] == 2) {
 		// LOTTERY
-		get_tickets_for(pid, types[id*2+1]);
+		if(!get_tickets_for(pid, types[id*2+1])) {
+			DEBUG_LOTTERY("There are no %d tickets available for %d\n", types[id*2+1], pid);
+			pending_lottery[pending_lottery[0][0]+1][0] = pid;
+			pending_lottery[pending_lottery[0][0]+1][1] = types[id*2+1];
+			pending_lottery[0][0]++;
+		}
 	}
 	pids[pids[0]+1] = pid;
 	pids[0] = pids[0]+1;
@@ -224,6 +232,17 @@ void remove_ticket(int ticket) {
 	free_tickets[++free_tickets[0]] = ticket;
 }
 
+void schedule_pending_lottery_processes() {
+	int i;
+	for(i = 1; i <= pending_lottery[0][0]; i++) {
+		if(get_tickets_for(pending_lottery[i][0], pending_lottery[i][1])) {
+			DEBUG_LOTTERY("Pending lottery process %d was scheduled\n", pending_lottery[i][0]);
+			delete_at(pending_lottery, i, sizeof(int)*2, pending_lottery[0][0]);
+			pending_lottery[0][0]--;
+		}
+	}
+}
+
 void remove_lottery_pid(int pid) {
 	int ticket;
 	for(ticket = 1; ticket <= 20; ticket++) {
@@ -231,6 +250,7 @@ void remove_lottery_pid(int pid) {
 			remove_ticket(ticket);
 		}
 	}
+	schedule_pending_lottery_processes();
 }
 
 void finalize_current_process_when_finished() {

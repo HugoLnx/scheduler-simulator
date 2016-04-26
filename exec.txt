@@ -4,6 +4,7 @@ Exec program2
 Exec program5 numtickets=5
 Exec program7 prioridade=2
 Exec program3
-Exec program6 numtickets=2
+Exec program6 numtickets=10
 Exec program8 prioridade=1
+Exec program6 numtickets=15
 Exec program9 prioridade=7
