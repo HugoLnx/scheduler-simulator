@@ -64,6 +64,7 @@ void initialize_memory() {
 		free_tickets[i] = i;
 	}
 }
+
 int randomize(int init, int end) {
 	return init+rand()%(1+end-init);
 }
@@ -121,38 +122,6 @@ void remove_rrobin_pid(int pid) {
 	while(rrobin_pids[inx] != pid) inx++;
 	delete_at(rrobin_pids, inx, sizeof(int), rrobin_pids[0]);
 	rrobin_pids[0]--;
-}
-
-/*
- * Funções de gerenciamento da memória compartilhada
- */
-void wait_for_programs() {
-	printf("Waiting for the programs...\n");
-	while(id_programs == -1 || id_types == -1 || id_programs_size == -1) {
-		sleep(1);
-		id_programs_size = shmget(PROGRAMS_SIZE_KEY, sizeof(int), S_IRWXU);
-		if(id_programs_size != -1) {
-			programs_size = shmat(id_programs_size, 0, 0);	
-			id_programs = shmget(PROGRAMS_KEY, sizeof(char)**programs_size*255, S_IRWXU);
-			id_types = shmget(TYPES_KEY, sizeof(int)**programs_size*2, S_IRWXU);
-		}
-	}
-
-	// Obtem referencia dos 3 espacos de memoria compartilhada
-	programs = shmat(id_programs, 0, 0);
-	types = shmat(id_types, 0, 0);
-	printf("%d programs found\n", *programs_size);
-}
-
-void release_shared_memory_and_exit(int code) {
-	shmdt(programs);
-	shmdt(types);
-	shmdt(programs_size);
-
-	shmctl(id_programs, IPC_RMID, 0);
-	shmctl(id_types, IPC_RMID, 0);
-	shmctl(id_programs_size, IPC_RMID, 0);
-	exit(code);
 }
 
 /*
@@ -225,29 +194,29 @@ void remove_lottery_pid(int pid) {
  */
 int compare_prio(const void* a, const void* b)
 {
-    Prio *a1 = (Prio*) a;
-    Prio *b1 = (Prio*) b;
-    
-    return a1->priority > b1->priority;
+	Prio *a1 = (Prio*) a;
+	Prio *b1 = (Prio*) b;
+	
+	return a1->priority > b1->priority;
 }
 
 void set_priority_process_in_memory(int pid, int prio) {
-    prio_pids[num_prio].pid = pid;
-    prio_pids[num_prio].priority = prio;
-    
-    DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[num_prio].pid, prio_pids[num_prio].priority);
-    num_prio++;
-    
-    qsort(prio_pids, num_prio, sizeof(Prio), compare_prio);
+	prio_pids[num_prio].pid = pid;
+	prio_pids[num_prio].priority = prio;
+	
+	DEBUG_PRIORITY("PROCESSO: Pid = %d , Prioridade = %d \n", prio_pids[num_prio].pid, prio_pids[num_prio].priority);
+	num_prio++;
+	
+	qsort(prio_pids, num_prio, sizeof(Prio), compare_prio);
 }
 
 void resume_priority_process() {
-    if(num_prio > 0) {
-        kill(prio_pids[0].pid, SIGCONT);
-        current_pid[0] = 1;
-        current_pid[1] = prio_pids[0].pid;
-        DEBUG_PRIORITY("pid chosed: %d\n", prio_pids[0].pid);
-    }
+	if(num_prio > 0) {
+		kill(prio_pids[0].pid, SIGCONT);
+		current_pid[0] = 1;
+		current_pid[1] = prio_pids[0].pid;
+		DEBUG_PRIORITY("pid chosed: %d\n", prio_pids[0].pid);
+	}
 }
 
 void remove_priority_pid(int pid) {
@@ -255,6 +224,38 @@ void remove_priority_pid(int pid) {
 	while(prio_pids[inx].pid != pid) inx++;
 	delete_at(prio_pids, inx, sizeof(Prio), num_prio);
 	num_prio--;
+}
+
+/*
+ * Funções de gerenciamento da memória compartilhada
+ */
+void wait_for_programs() {
+	printf("Waiting for the programs...\n");
+	while(id_programs == -1 || id_types == -1 || id_programs_size == -1) {
+		sleep(1);
+		id_programs_size = shmget(PROGRAMS_SIZE_KEY, sizeof(int), S_IRWXU);
+		if(id_programs_size != -1) {
+			programs_size = shmat(id_programs_size, 0, 0);	
+			id_programs = shmget(PROGRAMS_KEY, sizeof(char)**programs_size*255, S_IRWXU);
+			id_types = shmget(TYPES_KEY, sizeof(int)**programs_size*2, S_IRWXU);
+		}
+	}
+
+	// Obtem referencia dos 3 espacos de memoria compartilhada
+	programs = shmat(id_programs, 0, 0);
+	types = shmat(id_types, 0, 0);
+	printf("%d programs found\n", *programs_size);
+}
+
+void release_shared_memory_and_exit(int code) {
+	shmdt(programs);
+	shmdt(types);
+	shmdt(programs_size);
+
+	shmctl(id_programs, IPC_RMID, 0);
+	shmctl(id_types, IPC_RMID, 0);
+	shmctl(id_programs_size, IPC_RMID, 0);
+	exit(code);
 }
 
 /*
@@ -281,7 +282,7 @@ void run_program(int id) {
 		rrobin_pids[0] = rrobin_pids[0]+1;
 	} else if(types[id*2] == 1) {
 		// PRIORITY
-        set_priority_process_in_memory(pid, types[id*2+1]);
+		set_priority_process_in_memory(pid, types[id*2+1]);
 	} else if(types[id*2] == 2) {
 		// LOTTERY
 		if(!get_tickets_for(pid, types[id*2+1])) {
@@ -341,12 +342,12 @@ int main()
 				finalize_current_process_when_finished();
 			}
             
-            if (prio_pids[0].pid > 0)
-                resume_priority_process();
-            else if (rrobin_pids[0] > 0)
-                resume_robin_process();
-            else if (tickets[0] > 0)
-                resume_lottery_process();
+			if (prio_pids[0].pid > 0)
+				resume_priority_process();
+			else if (rrobin_pids[0] > 0)
+				resume_robin_process();
+			else if (tickets[0] > 0)
+				resume_lottery_process();
 		}
 
 		usleep(500*1000); // sleep 0.5 seconds

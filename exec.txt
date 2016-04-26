@@ -1,10 +1,10 @@
-Exec program1
-Exec program4 numtickets=5
-Exec program2
-Exec program5 numtickets=5
-Exec program7 prioridade=2
-Exec program3
-Exec program6 numtickets=10
-Exec program8 prioridade=1
-Exec program6 numtickets=15
-Exec program9 prioridade=7
+Exec iobounded1
+Exec iobounded4 numtickets=5
+Exec iobounded2
+Exec iobounded5 numtickets=5
+Exec iobounded7 prioridade=2
+Exec iobounded3
+Exec iobounded6 numtickets=10
+Exec iobounded8 prioridade=1
+Exec iobounded6 numtickets=15
+Exec iobounded9 prioridade=7

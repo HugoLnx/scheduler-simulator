@@ -5,9 +5,8 @@ int main()
 {
 	int i;
 	for(i=0; i < 50; i++) {
-		printf("[8]\n");
+		printf("[::NUMBER::]\n");
 		usleep(200*1000);
 	}
   return 0;
 }
-
