@@ -11,7 +11,7 @@
 
 #define DEBUG_LOTTERY //printf
 #define DEBUG_PRIORITY //printf
-#define DEBUG_STACK(A) //A
+#define DEBUG_STACK(A) A
 
 int *programs_size, id_programs=-1, id_types=-1, id_programs_size=-1;
 int pids[100];
@@ -110,7 +110,7 @@ int comparePrio(const void* a, const void* b)
     Prio *a1 = (Prio*) a;
     Prio *b1 = (Prio*) b;
     
-    return ( a1->priority - b1->priority );
+    return a1->priority > b1->priority;
 }
 
 void set_priority_process_in_memory(int pid, int prio) {
@@ -208,6 +208,10 @@ void remove_rrobin_pid(int pid) {
 }
 
 void remove_priority_pid(int pid) {
+	int inx = 0;
+	while(prio_pids[inx].pid != pid) inx++;
+	delete_at(prio_pids, inx, sizeof(Prio), numPrio);
+	numPrio--;
 }
 
 void remove_ticket(int ticket) {
@@ -248,6 +252,15 @@ void print_sized_array(char *name, int *array) {
 	printf("%s (%d): [", name, array[0]);
 	for(i = 1; i <= array[0]; i++) {
 		printf("%d ", array[i]);
+	}
+	printf("]\n");
+}
+
+void print_priority_pids() {
+	int i;
+	printf("Priority (%d): [", numPrio);
+	for(i = 0; i < numPrio; i++) {
+		printf("(%d,%d) ", prio_pids[i].priority, prio_pids[i].pid);
 	}
 	printf("]\n");
 }
@@ -296,6 +309,7 @@ int main()
 		DEBUG_STACK(print_array)("Lottery", lottery_pids, 20);
 		DEBUG_STACK(print_sized_array)("Used Tickets", tickets);
 		DEBUG_STACK(print_sized_array)("Free Tickets", free_tickets);
+		DEBUG_STACK(print_priority_pids());
 		DEBUG_STACK(print_sized_array)("PIDs", pids);
 	}
 
